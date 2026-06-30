@@ -1,20 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Mammoth;
 using ReverseMarkdown;
 
 namespace Doc2Md.Converters
 {
+    /// <summary>
+    /// Converts DOCX files to Markdown, extracting embedded images into a media folder.
+    /// </summary>
     public class DocxConverter : IDocxConverter
     {
-        public int Convert(string inputPath, string outputPath, string mediaPath)
+        /// <summary>Shared ReverseMarkdown configuration for HTML-to-Markdown conversion.</summary>
+        private static readonly ReverseMarkdown.Config _mdConfig = new()
         {
-            return ConvertDocxToMarkdown(inputPath, outputPath, mediaPath);
-        }
+            GithubFlavored = true,
+            RemoveComments = true,
+            UnknownTags = Config.UnknownTagsOption.PassThrough
+        };
 
-        public static int ConvertDocxToMarkdown(string inputPath, string outputPath, string mediaPath)
+        /// <summary>
+        /// Converts a DOCX file to Markdown, saving extracted images under <paramref name="mediaPath"/>.
+        /// </summary>
+        /// <param name="inputPath">Absolute path to the source .docx file.</param>
+        /// <param name="outputPath">Absolute path for the generated .md file.</param>
+        /// <param name="mediaPath">Directory where embedded images will be saved.</param>
+        /// <returns>0 on success, non-zero on failure.</returns>
+        public int Convert(string inputPath, string outputPath, string mediaPath)
         {
             Console.WriteLine($"Converting DOCX: {inputPath}");
 
@@ -43,16 +52,7 @@ namespace Doc2Md.Converters
                 });
 
             var result = documentConverter.ConvertToHtml(inputPath);
-
-            var config = new ReverseMarkdown.Config
-            {
-                GithubFlavored = true,
-                RemoveComments = true,
-                UnknownTags = Config.UnknownTagsOption.PassThrough
-            };
-
-            var htmlToMdConverter = new Converter(config);
-            string markdown = htmlToMdConverter.Convert(result.Value);
+            string markdown = new Converter(_mdConfig).Convert(result.Value);
 
             File.WriteAllText(outputPath, markdown);
 
@@ -60,19 +60,22 @@ namespace Doc2Md.Converters
             return 0;
         }
 
-        private static string GetExtensionFromContentType(string contentType)
-        {
-            return contentType.ToLowerInvariant() switch
+        /// <summary>
+        /// Maps an image MIME content-type to a file extension.
+        /// </summary>
+        /// <param name="contentType">MIME content-type string (e.g. "image/png").</param>
+        /// <returns>File extension without leading dot (e.g. "png"), or "bin" for unknown types.</returns>
+        private static string GetExtensionFromContentType(string contentType) =>
+            contentType.ToLowerInvariant() switch
             {
-                "image/png" => "png",
-                "image/jpeg" => "jpg",
-                "image/jpg" => "jpg",
-                "image/gif" => "gif",
-                "image/bmp" => "bmp",
-                "image/tiff" => "tiff",
+                "image/png"     => "png",
+                "image/jpeg"    => "jpg",
+                "image/jpg"     => "jpg",
+                "image/gif"     => "gif",
+                "image/bmp"     => "bmp",
+                "image/tiff"    => "tiff",
                 "image/svg+xml" => "svg",
-                _ => "bin"
+                _               => "bin"
             };
-        }
     }
 }
